@@ -34,3 +34,6 @@ spec:
                     key: IC_ALBUM_ID
                     name: {{ .Values.secretName }}
           restartPolicy: OnFailure
+
+          imagePullSecrets:
+            - name: {{ .Values.registrySecretName }}

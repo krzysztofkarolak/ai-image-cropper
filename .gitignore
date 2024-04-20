@@ -1,0 +1,7 @@
+.idea
+.venv
+.env
+credentials.json
+gphoto_oauth.json
+photo.jpg
+photoslibrary_v1.token

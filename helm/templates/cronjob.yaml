@@ -18,10 +18,10 @@ spec:
             image: {{ .Values.image }}
             imagePullPolicy: Always
             env:
-              - name: GOOGLE_APP_CREDENTIALS
+              - name: GOOGLE_APPLICATION_CREDENTIALS
                 valueFrom:
                   secretKeyRef:
-                    key: GOOGLE_APP_CREDENTIALS
+                    key: GOOGLE_APPLICATION_CREDENTIALS
                     name: {{ .Values.secretName }}
               - name: IC_BUCKET_NAME
                 valueFrom:

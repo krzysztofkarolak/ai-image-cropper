@@ -10,7 +10,7 @@ import requests
 import os
 
 # Google Photos Init
-CLIENT_SECRET_FILE = "gphoto_oauth.json"
+CLIENT_SECRET_FILE = "/data/gphoto_oauth.json"
 with open(CLIENT_SECRET_FILE, "w") as file:
     file.write(os.environ.get('IC_ALBUM_SECRET'))
 album_id = os.environ.get('IC_ALBUM_ID')

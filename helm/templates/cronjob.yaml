@@ -8,6 +8,11 @@ spec:
     spec:
       template:
         spec:
+          volumes:
+            - name: data-volume
+              persistentVolumeClaim:
+                claimName: imagecropper-data
+
           containers:
           - name: imagecropper
             image: {{ .Values.image }}
@@ -33,6 +38,9 @@ spec:
                   secretKeyRef:
                     key: IC_ALBUM_ID
                     name: {{ .Values.secretName }}
+            volumeMounts:
+                - name: data-volume
+                  mountPath: /data
           restartPolicy: OnFailure
 
           imagePullSecrets:

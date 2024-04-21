@@ -21,7 +21,7 @@ spec:
               - name: GOOGLE_APPLICATION_CREDENTIALS
                 valueFrom:
                   secretKeyRef:
-                    key: GOOGLE_APPLICATION_CREDENTIALS
+                    key: GOOGLE_APP_CREDENTIALS
                     name: {{ .Values.secretName }}
               - name: IC_BUCKET_NAME
                 valueFrom:

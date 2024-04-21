@@ -19,6 +19,10 @@ album_manager = Album(service)
 media_manager = Media(service)
 
 # Cloud Storage Init
+GCS_SECRET_FILE = "/data/gcs_key.json"
+with open(GCS_SECRET_FILE, "w") as file:
+    file.write(os.environ.get('GOOGLE_APP_CREDENTIALS'))
+os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = GCS_SECRET_FILE
 bucket_name = os.environ.get('IC_BUCKET_NAME')
 client = storage.Client()
 bucket = client.bucket(bucket_name)

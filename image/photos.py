@@ -3,6 +3,7 @@ from gphotospy.album import Album
 from gphotospy.media import Media
 from gphotospy.media import MediaItem
 from google.cloud import storage
+from google.auth.transport.requests import Request
 import cloudinary
 import cloudinary.uploader
 import cloudinary.api
@@ -14,7 +15,9 @@ CLIENT_SECRET_FILE = "/data/gphoto_oauth.json"
 with open(CLIENT_SECRET_FILE, "w") as file:
     file.write(os.environ.get('IC_ALBUM_SECRET'))
 album_id = os.environ.get('IC_ALBUM_ID')
-service = authorize.get_credentials(CLIENT_SECRET_FILE)
+credentials = authorize.get_credentials(CLIENT_SECRET_FILE)
+credentials.refresh(Request())
+service = authorize.init(CLIENT_SECRET_FILE)
 album_manager = Album(service)
 media_manager = Media(service)
 

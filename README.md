@@ -34,7 +34,7 @@ The app requires the following environment variables to be set:
 2. Configure your environment variables in your values file.
 3. Deploy the Helm chart:
    ```sh
-   helm install image-cropper-sync ./helm-chart
+   helm install image-cropper-sync ./helm
 
 ### Running as a Standalone Cronjob
 

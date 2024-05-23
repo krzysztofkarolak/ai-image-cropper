@@ -14,7 +14,7 @@ CLIENT_SECRET_FILE = "/data/gphoto_oauth.json"
 with open(CLIENT_SECRET_FILE, "w") as file:
     file.write(os.environ.get('IC_ALBUM_SECRET'))
 album_id = os.environ.get('IC_ALBUM_ID')
-service = authorize.init(CLIENT_SECRET_FILE)
+service = authorize.get_credentials(CLIENT_SECRET_FILE)
 album_manager = Album(service)
 media_manager = Media(service)
 

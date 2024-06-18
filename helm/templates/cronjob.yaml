@@ -16,7 +16,7 @@ spec:
           containers:
           - name: imagecropper
             image: {{ .Values.image }}
-            imagePullPolicy: Always
+            imagePullPolicy: IfNotPresent
             env:
               - name: GOOGLE_APP_CREDENTIALS
                 valueFrom:

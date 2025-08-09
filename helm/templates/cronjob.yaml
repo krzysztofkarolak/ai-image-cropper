@@ -49,9 +49,9 @@ spec:
                     key: SMB_SHARE
                     name: {{ .Values.secretName }}
               - name: TARGET_IMAGE_WIDTH
-                value: { { .Values.targetImageWidth } }
+                value: {{ .Values.targetImageWidth }}
               - name: TARGET_IMAGE_HEIGHT
-                value: { { .Values.targetImageHeight } }
+                value: {{ .Values.targetImageHeight }}
           restartPolicy: OnFailure
 
           imagePullSecrets:

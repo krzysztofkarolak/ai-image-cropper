@@ -1,138 +1,130 @@
-from gphotospy import authorize
-from gphotospy.album import Album
-from gphotospy.media import Media
-from gphotospy.media import MediaItem
-from google.cloud import storage
-from google.auth.transport.requests import Request
+import os
+import smbclient
 import cloudinary
 import cloudinary.uploader
-import cloudinary.api
 import requests
-import os
+import logging
+import sys
+from google.cloud import storage
+from PIL import Image, ImageOps
 
-# Google Photos Init
-CLIENT_SECRET_FILE = "/data/gphoto_oauth.json"
-with open(CLIENT_SECRET_FILE, "w") as file:
-    file.write(os.environ.get('IC_ALBUM_SECRET'))
-album_id = os.environ.get('IC_ALBUM_ID')
-credentials = authorize.get_credentials(CLIENT_SECRET_FILE)
-credentials.refresh(Request())
-service = authorize.init(CLIENT_SECRET_FILE)
-album_manager = Album(service)
-media_manager = Media(service)
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(levelname)s - %(message)s",
+    handlers=[
+        logging.StreamHandler(sys.stdout)
+    ]
+)
+
+# SMB config
+SMB_SERVER = os.environ.get('SMB_SERVER')
+SMB_SHARE = os.environ.get('SMB_SHARE')
+SMB_USERNAME = os.environ.get('SMB_USERNAME')
+SMB_PASSWORD = os.environ.get('SMB_PASSWORD')
 
 # Cloud Storage Init
-GCS_SECRET_FILE = "/data/gcs_key.json"
+GCS_SECRET_FILE = "/tmp/gcs_key.json"
 with open(GCS_SECRET_FILE, "w") as file:
     file.write(os.environ.get('GOOGLE_APP_CREDENTIALS'))
 os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = GCS_SECRET_FILE
 bucket_name = os.environ.get('IC_BUCKET_NAME')
 client = storage.Client()
 bucket = client.bucket(bucket_name)
-blobs_list = []
 
-# Cloudinary
-config = cloudinary.config(secure=True)
+# Services config
+cloudinary.config(secure=True)
+smbclient.ClientConfig(username=SMB_USERNAME, password=SMB_PASSWORD)
+target_image_width = os.environ.get('TARGET_IMAGE_WIDTH')
+target_image_height = os.environ.get('TARGET_IMAGE_HEIGHT')
 
-def set_file_extension(file_name):
-    file_name_parts = file_name.split('.')
-    if len(file_name_parts) > 1:
-        file_name_without_extension = '.'.join(file_name_parts[:-1])
-        new_file_name = file_name_without_extension + ".jpg"
-        return new_file_name
+def reduce_image_size(file_path, max_size_mb=8, max_width=2000):
+    size_mb = os.path.getsize(file_path) / (1024 * 1024)
 
-def get_public_id(file_name):
-    file_name_parts = file_name.split('.')
-    if len(file_name_parts) > 1:
-        file_name_without_extension = '.'.join(file_name_parts[:-1])
-        return file_name_without_extension
-
-def fetch_and_store_image(url, file_name):
     try:
-        response = requests.get(url)
-        if response.status_code == 200:
-            with open(file_name, 'wb') as f:
-                f.write(response.content)
-            return file_name
-        else:
-            print("Failed to fetch image:", response.status_code)
-    except Exception as e:
-        print("Error fetching image:", str(e))
+        with Image.open(file_path) as img:
+            # Fix photo rotation
+            img = ImageOps.exif_transpose(img)
 
+            if (img.width > max_width) and (size_mb > max_size_mb):
+                logging.info(f"{file_path} is {size_mb:.2f} MB – optimizing")
+                ratio = max_width / float(img.width)
+                new_height = int(img.height * ratio)
+                img = img.resize((max_width, new_height), Image.LANCZOS)
+            else:
+                logging.info(f"{file_path} is {size_mb:.2f} MB – OK")
+
+            img = img.convert("RGB")
+            img.save(file_path, "JPEG", quality=85, optimize=True)
+
+        new_size_mb = os.path.getsize(file_path) / (1024 * 1024)
+        logging.info(f"Reduced size of {file_path} from {size_mb:.2f} MB to {new_size_mb:.2f} MB")
+
+    except Exception as e:
+        logging.error(f"Error while optimizing photo locally {file_path}: {e}")
+
+def upload_blob(bucket, file_path):
+    blob_name = os.path.basename(file_path)
+    blob = bucket.blob(blob_name)
+    blob.upload_from_filename(file_path)
+    logging.info(f"File {blob_name} uploaded to bucket.")
 
 def upload_image_cloudinary(file_name, public_id):
-    cloudinary.uploader.upload(file_name,
-                               public_id=public_id, unique_filename=False, overwrite=True)
-
-
-def create_transformation_cloudinary(file_name, public_id):
-    transformed_url = cloudinary.CloudinaryImage(public_id).build_url(gravity="faces", height=480, width=800, crop="fill")
-    fetch_and_store_image(transformed_url, file_name)
-
-    cloudinary.uploader.destroy(public_id)
-
-
-def downloadAndStorePhoto(search_iterator, file_name):
-    media = MediaItem(search_iterator).get_url()
-    blob_name = fetch_and_store_image(media, file_name)
-    try:
-        upload_image_cloudinary(blob_name, get_public_id(blob_name))
-        create_transformation_cloudinary(blob_name, get_public_id(blob_name))
-    except Exception as e:
-        print("Error cropping image: " + str(e))
-    upload_blob(bucket, blob_name)
-    os.remove(blob_name)
-
-
-def create_blob_list():
-    blobs = bucket.list_blobs()
-    for blob in blobs:
-        blobs_list.append(blob.name)
-
-
-def upload_blob(bucket, file_name):
-    blob = bucket.blob(file_name)
-    generation_match_precondition = 0
-
-    blob.upload_from_filename(file_name, if_generation_match=generation_match_precondition)
-
-    print(
-        f"File {file_name} uploaded to {file_name}."
+    logging.info(f"Uploading to Cloudinary")
+    cloudinary.uploader.upload(
+        file_name,
+        public_id=public_id,
+        unique_filename=False,
+        overwrite=True
     )
 
-def delete_blob(bucket, blob_name):
-    blob = bucket.blob(blob_name)
-    generation_match_precondition = None
+def create_transformation_cloudinary(file_name, public_id):
+    logging.info(f"Transforming with Cloudinary")
+    transformed_url = cloudinary.CloudinaryImage(public_id).build_url(
+        gravity="faces",
+        height=target_image_height,
+        width=target_image_width,
+        crop="fill",
+        angle=0
+    )
 
-    blob.reload()
-    generation_match_precondition = blob.generation
+    response = requests.get(transformed_url)
 
-    blob.delete(if_generation_match=generation_match_precondition)
+    if response.status_code == 200:
+        with open(file_name, "wb") as f:
+            f.write(response.content)
+    cloudinary.uploader.destroy(public_id)
 
-    print(f"Blob {blob_name} deleted.")
+def main():
+    blobs_in_bucket = {blob.name for blob in bucket.list_blobs()}
+    photos_on_smb = set()
 
-create_blob_list()
+    remote_dir = f"\\\\{SMB_SERVER}\\{SMB_SHARE}\\"
+    for file in smbclient.listdir(remote_dir):
+        if file.lower().endswith(".jpg"):
+            photos_on_smb.add(file)
+            if file not in blobs_in_bucket:
+                logging.info(f"Downloading and processing: {file}")
+                local_file_path = os.path.join("/tmp", file)
+                with smbclient.open_file(remote_dir + file, mode="rb") as remote_file, open(local_file_path, "wb") as local_file:
+                    local_file.write(remote_file.read())
 
-photos_list = []
+                public_id = os.path.splitext(file)[0]
 
-# search in album, adding new photos
-search_iterator = media_manager.search_album(album_id)
-try:
-    for _ in range(2048):
-        iterator = next(search_iterator)
-        file_name = iterator.get("filename")
-        item_name = set_file_extension(file_name)
-        photos_list.append(item_name)
-        print("Checking to add: " + item_name)
-        if item_name not in blobs_list:
-            print(item_name + " not in bucket")
-            downloadAndStorePhoto(iterator, item_name)
-except (StopIteration, TypeError) as e:
-    print("No (more) media in album.")
+                try:
+                    reduce_image_size(local_file_path)
+                    upload_image_cloudinary(local_file_path, public_id)
+                    create_transformation_cloudinary(local_file_path, public_id)
+                except Exception as e:
+                    logging.error("Error cropping image: " + str(e))
 
-# Remove photos deleted from album
-for file in blobs_list:
-    print("Checking to delete: " + file)
-    if file not in photos_list:
-        print(file + " not in album anymore")
-        delete_blob(bucket, file)
+                upload_blob(bucket, local_file_path)
+                os.remove(local_file_path)
+
+    for blob_name in blobs_in_bucket:
+        if blob_name not in photos_on_smb:
+            blob = bucket.blob(blob_name)
+            blob.delete()
+            logging.info(f"Removed {blob_name} from bucket.")
+
+if __name__ == "__main__":
+    main()

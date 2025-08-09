@@ -8,11 +8,6 @@ spec:
     spec:
       template:
         spec:
-          volumes:
-            - name: data-volume
-              persistentVolumeClaim:
-                claimName: imagecropper-data
-
           containers:
           - name: imagecropper
             image: {{ .Values.image }}
@@ -28,24 +23,35 @@ spec:
                   secretKeyRef:
                     key: IC_BUCKET_NAME
                     name: {{ .Values.secretName }}
-              - name: IC_ALBUM_SECRET
-                valueFrom:
-                  secretKeyRef:
-                    key: IC_ALBUM_SECRET
-                    name: {{ .Values.secretName }}
-              - name: IC_ALBUM_ID
-                valueFrom:
-                  secretKeyRef:
-                    key: IC_ALBUM_ID
-                    name: {{ .Values.secretName }}
               - name: CLOUDINARY_URL
                 valueFrom:
                   secretKeyRef:
                     key: CLOUDINARY_URL
                     name: {{ .Values.secretName }}
-            volumeMounts:
-                - name: data-volume
-                  mountPath: /data
+              - name: SMB_USERNAME
+                valueFrom:
+                  secretKeyRef:
+                    key: SMB_USERNAME
+                    name: {{ .Values.secretName }}
+              - name: SMB_PASSWORD
+                valueFrom:
+                  secretKeyRef:
+                    key: SMB_PASSWORD
+                    name: {{ .Values.secretName }}
+              - name: SMB_SERVER
+                valueFrom:
+                  secretKeyRef:
+                    key: SMB_SERVER
+                    name: {{ .Values.secretName }}
+              - name: SMB_SHARE
+                valueFrom:
+                  secretKeyRef:
+                    key: SMB_SHARE
+                    name: {{ .Values.secretName }}
+              - name: TARGET_IMAGE_WIDTH
+                value: { { .Values.targetImageWidth } }
+              - name: TARGET_IMAGE_HEIGHT
+                value: { { .Values.targetImageHeight } }
           restartPolicy: OnFailure
 
           imagePullSecrets:

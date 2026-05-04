@@ -4,10 +4,16 @@ metadata:
   name: imagecropper
 spec:
   schedule: {{ .Values.schedule }}
+  concurrencyPolicy: Forbid
   jobTemplate:
     spec:
+      parallelism: 1
+      completions: 1
+      backoffLimit: 2
+      activeDeadlineSeconds: 300
       template:
         spec:
+          restartPolicy: Never
           containers:
           - name: imagecropper
             image: {{ .Values.image }}
@@ -52,7 +58,6 @@ spec:
                 value: "{{ .Values.targetImageWidth }}"
               - name: TARGET_IMAGE_HEIGHT
                 value: "{{ .Values.targetImageHeight }}"
-          restartPolicy: OnFailure
 
           imagePullSecrets:
             - name: {{ .Values.registrySecretName }}

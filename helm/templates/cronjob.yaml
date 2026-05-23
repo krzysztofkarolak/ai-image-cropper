@@ -4,14 +4,20 @@ metadata:
   name: imagecropper
 spec:
   schedule: {{ .Values.schedule }}
+  concurrencyPolicy: Forbid
   jobTemplate:
     spec:
+      parallelism: 1
+      completions: 1
+      backoffLimit: 2
+      activeDeadlineSeconds: 300
       template:
         spec:
           {{- if .Values.nodeSelector.enabled }}
           nodeSelector:
             kubernetes.io/arch: {{ .Values.nodeSelector.arch | quote }}
           {{- end }}
+          restartPolicy: Never
           containers:
           - name: imagecropper
             image: {{ .Values.image }}
@@ -56,7 +62,6 @@ spec:
                 value: "{{ .Values.targetImageWidth }}"
               - name: TARGET_IMAGE_HEIGHT
                 value: "{{ .Values.targetImageHeight }}"
-          restartPolicy: OnFailure
 
           imagePullSecrets:
             - name: {{ .Values.registrySecretName }}

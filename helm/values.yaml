@@ -4,3 +4,6 @@ secretName: "imagecropper-secrets"
 registrySecretName: ""
 targetImageWidth: "800"
 targetImageHeight: "480"
+nodeSelector:
+  enabled: true
+  arch: "amd64"

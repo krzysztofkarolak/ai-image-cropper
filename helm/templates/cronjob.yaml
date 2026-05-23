@@ -8,6 +8,10 @@ spec:
     spec:
       template:
         spec:
+          {{- if .Values.nodeSelector.enabled }}
+          nodeSelector:
+            kubernetes.io/arch: {{ .Values.nodeSelector.arch | quote }}
+          {{- end }}
           containers:
           - name: imagecropper
             image: {{ .Values.image }}
